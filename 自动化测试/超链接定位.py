@@ -11,6 +11,7 @@ driver.find_element_by_link_text('访问新浪网站').click()
 driver.find_element_by_partial_link_text('新浪').click()
 
 
+
 '''
 
 
