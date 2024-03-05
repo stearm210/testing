@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>一级标题</h1>
+    <h2>二级标题</h2>
+    <p>段落标签</p>
+    <!-- 超链接标签
+    href:指定要跳转的页面
+    target="_blank":指定在新的窗口打开页面-->
+    <a href="https://www.baidu.com">百度访问</a>
+    <a href="https://www.jd.com" target="_blank">访问京东</a>
+    <!-- form为表单标签，input为输入标签,br为换行标签 -->
+    <!-- input中的type为不同类型的输入或者选择 -->
+    <!-- input中的value是对应名字--如果你选择了button时 -->
+    <!-- 按了提交按钮之后会跳转到对应网址 -->
+    <form action="http://www.baidu.com">
+        用户名：<input type="text"><br>
+        密码框：<input type="password"><br>
+        <!-- 性别这里使用name特征进行单一选择 -->
+        性别 : <input type="radio" name="sex">男<input type="radio" name="sex">女
+        爱好：<input type="checkbox">吃饭<input type="checkbox">睡觉<input type="checkbox">学习
+
+        按阶段分：<br>
+        <!-- 数字,有序排列 -->
+        <ol>
+            <li>单元测试</li>
+            <li>集成测试</li>
+            <li>系统测试</li>
+            <li>验收测试</li>
+        </ol>
+        <!-- 逗号，无序排列 -->
+        <ul>
+            <li>黑盒测试</li>
+            <li>白盒测试</li>
+            <li>灰盒测试</li>
+        </ul><br>
+        <input type="button" value="普通按钮"><br>
+        <input type="reset" value="重置按钮"><br>
+        <input type="submit" value="提交按钮"><br>
+    </form>
+</body>
+
+</html>
