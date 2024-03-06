@@ -12,11 +12,14 @@ XPath即为XML Path的简称，这是一种再XML文档中查找元素信息的�
 使用这种语言进行定位
 XML:一种标记语言，用于数据的存储和传递，后缀.xml结尾
 
+xpath的定位方法为以下代码
+element=driver.find_element_by_xpath(xpath)
 
+#下面这个为一个相对路径：
+/html/body/div[1]/div/main/div[1]/div[1]/div[2]/div[2]/main/section/input
+这个相对路径如何得到？：在目标页面选择检查，右键目标代码之后选择copy->copy full xpath
 
-
-
-
+但是有些元素只有绝对路径
 
 
 
