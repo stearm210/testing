@@ -1,5 +1,32 @@
 selenium中推荐使用CSS定位，因为定位速度更快
 
+css定位方法的基本语法：element=driver.find_element_by_css_selection(css_selector)
+
+css策略使用方法是很多的，建议根据情况选择
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
