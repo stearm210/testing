@@ -27,11 +27,10 @@ username.send_keys(Keys.COMMAND,'c')#macos系统
 sleep(2)
 
 
-
-
 4.粘粘到密码框
-
-
+password=driver.find_element_by_id('passwordA')
+password.send_keys(Keys.CONTROL,'v')#windows系统
+password.send_keys(Keys.COMMAND,'v')#mac系统
 
 
 #展示效果
