@@ -13,10 +13,11 @@ driver.get('www.baidu.com')
 #driver.maximize_window()
 
 #2.设置浏览器窗口，set_window_size(width,height)设置浏览器宽、高（像素点）
-driver.set_window_size(300,300)
+#driver.set_window_size(300,300)
 #上面用于查看页面是否可以自适应在web和app端切换使用
 
 #3.set_windows_position(x,y)设置浏览器窗口位置，设置浏览器位置
+driver.set_window_position(300,300)
 
 
 sleep(3)
