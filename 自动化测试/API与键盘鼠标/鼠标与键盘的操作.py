@@ -19,12 +19,46 @@ action=ActionChains(driver)
 #鼠标右键只能展示右键菜单内容，菜单中的元素无法操作
 action.context_click(username)
 
-#3.执行方法:该方法必须调用，否则上述代码无效
+#3.执行方法:该方法必须调用(使用.perform（）调用)，否则上述代码无效
 action.perform()
 
-
+#展示效果
 sleep(3)
 driver.quit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
