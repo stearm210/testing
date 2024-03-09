@@ -20,6 +20,12 @@ action.move_to_element(btn)
 
 #执行
 action.perform()
+
+#展示效果
+sleep(3)
+#退出浏览器
+driver.quit()
+
 '''
 
 
