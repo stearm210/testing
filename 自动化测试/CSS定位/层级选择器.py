@@ -5,7 +5,7 @@
 '''
 
 '''
-1.父子层级关系：夫层级>子层级策略
+1.父子层级关系：夫层级(id选择器)>子层级策略(元素选择器)
 driver.find_element_by_css_selector('#pa>input').send_keys('admin')
 
 2.祖辈后代层级关系：祖辈策略 后代策略(这里的后代用属性选择器)

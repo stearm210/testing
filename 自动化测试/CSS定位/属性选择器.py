@@ -9,7 +9,14 @@ driver.find_element_by_css_selector('input[placeholder="请输入密码"]').send
 
 
 '''
+'''
+属性选择器的其他写法
+1.标签名[属性名^="属性值开头部分内容"]:根据给出的属性值开头内容定位元素
+driver.find_element_by_css_selector('[id^="pas"]').send_keys('123')
 
+2.标签名
+
+'''
 
 
 
