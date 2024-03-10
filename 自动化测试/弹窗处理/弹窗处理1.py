@@ -30,6 +30,7 @@ alert.accept()#同意
 alert.dismiss()#移除
 
 
+
 #3.输入用户名admin
 driver.find_element_by_id('userA').end_keys('admin')
 
