@@ -15,17 +15,20 @@ driver.get('www.baidu.com')
 
 #对应处理
 #1.点击alert按钮
+#凡是通过JS实现的系统弹窗，无法通过鼠标右键检查选项获取元素信息
 driver.find_element_by_id('alerta').click()#警告框
 driver.find_element_by_id('confirma').click()#确认框
 #2.关闭警告框
 #先切换到弹窗
+#只要是系统弹窗，无论哪一种，处理方法都是一下步骤
 alert=driver.switch_to.alert
 #获取弹窗信息
 print('弹窗信息是：',alert.text)
 #去除弹窗（同意/移除）
 sleep(2)
-alert.accept()
-alert.dismiss()
+alert.accept()#同意
+alert.dismiss()#移除
+
 
 #3.输入用户名admin
 driver.find_element_by_id('userA').end_keys('admin')
