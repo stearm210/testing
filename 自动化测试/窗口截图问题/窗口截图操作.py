@@ -20,6 +20,11 @@ driver.get_screenshot_as_file('/info.png')
 now_time=strftime('%Y%ms_%H%M%')
 driver.get_screenshot_as_file('/info.png')
 
+#拓展：给元素截图
+#使用元素标签找到对应元素
+btn=driver.find_element_by_tag_name('button')
+btn.screenshot('./btn.png')
+
 #展示效果
 sleep(3)
 #退出浏览器
