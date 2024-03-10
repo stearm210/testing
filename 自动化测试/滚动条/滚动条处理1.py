@@ -13,6 +13,17 @@ driver=webdriver.Chrome()
 driver.get('www.baidu.com')
 
 #对应处理
+#打开注册页面A，暂停2秒之后，滚动条落在最底层，暂停2秒之后，恢复原位
+sleep(2)
+#1.js代码
+js_down="windows.scrollTo(0,1000)"
+#2.执行js代码（向下代码）
+driver.execute_script(js_down)
+#3.向上代码
+#反向向上则需要将坐标归0
+js_up="window.scrollTo(0,0)"
+driver.execute_script(js_up)
+
 
 
 #展示效果
