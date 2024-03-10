@@ -34,11 +34,6 @@ driver.switch_to.frame('myframe2')
 driver.find_element_by_id('userB').send_keys('admin2')
 driver.find_element_by_id('passwordB').send_keys('123456')
 
-
-
-
-
-
 #展示效果
 sleep(3)
 #退出浏览器
