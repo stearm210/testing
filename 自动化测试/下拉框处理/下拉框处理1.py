@@ -13,9 +13,16 @@ driver=webdriver.Chrome()
 #打开页面
 driver.get('www.baidu.com')
 
+
 #选择广州
-
-
+driver.find_element_by_css_selector('[value="gz"]').click()
+sleep(2)
+#选择上海
+driver.find_element_by_css_selector('[value="sh"]').click()
+sleep(2)
+#选择北京
+driver.find_element_by_css_selector('[value="bj"]').click()
+sleep(2)
 
 
 
