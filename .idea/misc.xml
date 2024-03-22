@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.12 (软件测试python练习)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.12 (软件测试python练习)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.8.10 (sftp://hello@10.108.30.248:22/home/hello/test/bin/python)" project-jdk-type="Python SDK" />
 </project>
