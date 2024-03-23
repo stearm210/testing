@@ -147,6 +147,9 @@ class ADConv(nn.Module):
 
     def forward(self, x):
         '''
+        forward方法中，对输入的图像进行一系列的卷积操作。
+        '''
+        '''
         input:
              weight: b,hw,n0um
         '''
