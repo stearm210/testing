@@ -23,12 +23,14 @@ class Conv2d(nn.Module):
         # print("iam in work conv2d forward")
         x = self.conv(x)
         if self.bn is not None:
+            '''
+            如果bn参数为
+            '''
             x = self.bn(x)
         if self.relu is not None:
             x = self.relu(x)
 
         return x
-
 
 def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     if dilation:
