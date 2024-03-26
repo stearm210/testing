@@ -42,7 +42,7 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     函数根据配置列表动态构建一个序列化层结构，这个列表可以包含卷积层和池化层的配置。
     '''
     '''
-        这里的M代表最大池化层，其余数值表示卷积层。这个函数返回一个nn.Sequential 对象，它按顺序执行所有层。
+    使用 make_layers 函数根据 Conv3_3f、Conv4_3f 和 Conv5_3f 配置列表构建卷积层序列。这些函数调用会创建 nn.Sequential 对象，其中包含了卷积层和批量归一化层（如果启用）。
     '''
     if dilation:
         d_rate = 2
@@ -83,10 +83,7 @@ class ADConv(nn.Module):
         '''
         forward方法中，对输入的图像进行一系列的卷积操作。
         '''
-        '''
-        input:
-             weight: b,hw,n0um
-        '''
+
         # print("begin", torch.max(x), torch.min(x))
         B, L, num = x.shape
         x = x.view(B, 1, L, num)
@@ -109,7 +106,6 @@ class multi_att(nn.Module):
     '''
     这是一个多尺度注意力模块，它使用线性层（Linear）来投影特征，然后通过注意力机制来增强特征。这个模块可以处理不同尺寸的输入，并根据输入尺寸选择不同的前向传播方式。
     '''
-
     def __init__(self, dim, top=9, c_ratio=8):
         super(multi_att, self).__init__()
         self.p_num = top
@@ -211,11 +207,19 @@ class zt3(nn.Module):
     '''
 
     def __init__(self, load_weights=False):
+        #先定义类属性
+        '''
+        Conv3_3f、Conv4_3f 和 Conv5_3f 是模型中不同层的特征通道数的列表，分别对应三个不同阶段的卷积层配置。
+        :param load_weights:
+        '''
         super(zt3, self).__init__()
-
         self.Conv3_3f = [64, 64, 'M', 128, 128, 'M', 256, 256, 256]
         self.Conv4_3f = ['M', 512, 512, 512]
         self.Conv5_3f = ['M', 512, 512, 512]
+
+        # '''
+        # 这里使用make_layers函数根据卷积层配置列表构建卷积层序列
+        # '''
 
         # self.Conv2_2 = make_layers(self.Conv2_2f, in_channels=3, batch_norm=True, dilation=False)
         self.Conv3_3 = make_layers(self.Conv3_3f, in_channels=3, batch_norm=True, dilation=False)
@@ -223,6 +227,9 @@ class zt3(nn.Module):
         self.Conv5_3 = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
         # self.back = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
 
+
+        # T1、T2 和 T3 是模型中的三个不同的转换序列（transition layers），它们负责在不同层之间转换特征图。
+        #
         self.T1 = nn.Sequential(
             Conv2d(1025, 256, 1, bn=True),
             Conv2d(256, 256, 3, bn=True),
@@ -244,9 +251,16 @@ class zt3(nn.Module):
         self.d512b = Conv2d(512, 1, 1, bn=True)
         self.enhance_pos = multi_att(dim=[512], top=6)
 
+        #初始化权重
+        '''
+        如果 load_weights 参数为 False，则模型将使用预训练的 VGG16 模型的权重进行初始化。这是通过加载 VGG16 模型的权重到 zt3 模型的对应层中实现的。
+        '''
         if not load_weights:
             mod = models.vgg16_bn(pretrained=True)
             self._initialize_weights()
+            '''
+            如果 load_weights 为 False，则调用 _initialize_weights 方法来初始化模型中所有 Conv2d 和 Linear 层的权重。这通常使用 Xavier 初始化方法完成。
+            '''
             for j in range(len(self.Conv3_3)):
                 self.Conv3_3[j].load_state_dict(mod.features[j].state_dict())
             for p in range(len(self.Conv4_3)):
@@ -271,7 +285,6 @@ class zt3(nn.Module):
         r1 = self.d1024b(s1)
 
         s1 = self.T1(torch.cat((s1, r1), 1))
-
         s2 = F.interpolate(s1, scale_factor=2, mode='bilinear')
         s2 = torch.cat((s2, c3), 1)
         del c3
@@ -280,7 +293,6 @@ class zt3(nn.Module):
         mask = self.dmnT3(s2)
         s2 = s2 * mask
         r4 = self.T3(s2)
-
         return r4, [r2, r1, r0], mask
 
     def _initialize_weights(self):
@@ -353,7 +365,6 @@ def get_mask(feat, mask):
     B, C, H, W = feat.shape
     mask = F.interpolate(mask, size=[H, W], mode='bilinear', align_corners=None)
     return feat * mask
-
 
 '''
 创建了一个 zt3 模型实例。
