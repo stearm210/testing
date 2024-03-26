@@ -65,7 +65,7 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
 
 class ADConv(nn.Module):
     '''
-    这是一个自适应卷积层，它使用一个卷积层来生成注意力权重，然后通过 Softmax 函数进行归一化，生成注意力分布。
+    这是一个自适应卷积层，它使用一个卷积层来生成注意力权重，这个层通过卷积操作和 Softmax 函数来生成一个注意力分布，这个分布决定了哪些位置的特征更重要。
     '''
 
     def __init__(self, p_num):
@@ -99,13 +99,10 @@ class ADConv(nn.Module):
         return x * mask
 
 
+'''
+注意力机制，增强对图像中重要特征的关注能力，帮助更加关注于图像关键部分。权重注意力机制部分代码
+'''
 class multi_att(nn.Module):
-    '''
-    multi_att 类实现了一个多尺度注意力机制，它通过查询（query）、键（key）和值（value）的线性变换和注意力加权来增强特征。
-    '''
-    '''
-    这是一个多尺度注意力模块，它使用线性层（Linear）来投影特征，然后通过注意力机制来增强特征。这个模块可以处理不同尺寸的输入，并根据输入尺寸选择不同的前向传播方式。
-    '''
     def __init__(self, dim, top=9, c_ratio=8):
         super(multi_att, self).__init__()
         self.p_num = top
@@ -113,7 +110,12 @@ class multi_att(nn.Module):
         self.proj_q = nn.Linear(dim[0], cim, bias=False)
         self.proj_k = nn.Linear(dim[0], cim, bias=False)
         self.proj_v = nn.Linear(dim[0], cim, bias=False)
+        '''
+        投影层
+        proj_q、proj_k 和 proj_v 是三个线性层（nn.Linear），它们分别用于将输入特征投影到一个新的空间，这个空间的维度由 cim（计算输入维度除以一个压缩比 c_ratio 得到）决定。这些投影层对应于注意力机制中的查询（query）、键（key）和值（value）。
+        '''
         self.adptive = ADConv(top)
+        #adptive是一个自适应卷积层，用于生成注意力权重
         self.catt = nn.Parameter(torch.ones([1, dim[0], 1, 1]), requires_grad=True)
         self.catt1 = nn.Parameter(torch.ones([1, dim[0], 1, 1]), requires_grad=True)
         self.dsn = Conv2d(dim[0], 1, 1, bn=True)
@@ -134,15 +136,25 @@ class multi_att(nn.Module):
             return self.get_split_forward(feat)
 
     def get_forward(self, feat):
-
+        '''
+        这个函数主要用于权重注意力计算
+        :param feat:
+        :return:
+        '''
+        #q、k、v矩阵分别计算出来
         B, C, H, W = feat[0].shape
         q = self.proj_q(feat[0].flatten(2).transpose(1, 2))  # b,h'w',c/4
         k = self.proj_k(feat[0].flatten(2).transpose(1, 2))
         v = self.proj_v(feat[0].flatten(2).transpose(1, 2))
 
+        #w为q、k计算的余弦相似度
         w = cos_dot(q, k)  # (b,hw,c/4) (b,hw1*4,c/4) b,hw,hw1*4
         del q, k
+
+        #torch.topk主要选择top-k中最重要的特证
         w, index = torch.topk(w, self.p_num, dim=-1)  # b,hw,n0um
+
+        #get_top_value函数根据选定的索引在proj_v中选择相应的值，之后通过adptive 层进行加权。
         v = get_top_value(v, index)  # (b,hw1*3,c) (b,hw,num) -> b,hw,num,c
         w = self.adptive(w)
         w = w.view(B, H * W, 1, self.p_num)  # b,HW,1,num
@@ -217,10 +229,9 @@ class zt3(nn.Module):
         self.Conv4_3f = ['M', 512, 512, 512]
         self.Conv5_3f = ['M', 512, 512, 512]
 
-        # '''
-        # 这里使用make_layers函数根据卷积层配置列表构建卷积层序列
-        # '''
-
+        '''
+        使用 make_layers 函数根据 Conv3_3f、Conv4_3f 和 Conv5_3f 配置列表构建卷积层序列。这些函数调用会创建 nn.Sequential 对象，其中包含了卷积层和批量归一化层（如果启用）。
+        '''
         # self.Conv2_2 = make_layers(self.Conv2_2f, in_channels=3, batch_norm=True, dilation=False)
         self.Conv3_3 = make_layers(self.Conv3_3f, in_channels=3, batch_norm=True, dilation=False)
         self.Conv4_3 = make_layers(self.Conv4_3f, in_channels=256, batch_norm=True, dilation=False)
