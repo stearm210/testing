@@ -19,20 +19,31 @@ class Conv2d(nn.Module):
             self.relu = None
         # self.sigmoid = nn.ReLU(inplace=True) if sigmoid else None
 
+
     def forward(self, x):
         # print("iam in work conv2d forward")
         x = self.conv(x)
         if self.bn is not None:
             '''
-            如果bn参数为
+            如果bn参数为True,则会在卷积层后添加批量归一化（Batch Normalization）层
             '''
             x = self.bn(x)
         if self.relu is not None:
+            '''
+            同样，这里也会引进激活函数
+            '''
             x = self.relu(x)
 
         return x
 
+
 def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
+    '''
+    函数根据配置列表动态构建一个序列化层结构，这个列表可以包含卷积层和池化层的配置。
+    '''
+    '''
+        这里的M代表最大池化层，其余数值表示卷积层。这个函数返回一个nn.Sequential 对象，它按顺序执行所有层。
+    '''
     if dilation:
         d_rate = 2
     else:
@@ -40,6 +51,7 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     layers = []
     for v in cfg:
         if v == 'M':
+
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
         else:
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=d_rate, dilation=d_rate)
@@ -51,91 +63,11 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     return nn.Sequential(*layers)
 
 
-class zt3(nn.Module):
-    def __init__(self, load_weights=False):
-        super(zt3, self).__init__()
-
-        self.Conv3_3f = [64, 64, 'M', 128, 128, 'M', 256, 256, 256]
-        self.Conv4_3f = ['M', 512, 512, 512]
-        self.Conv5_3f = ['M', 512, 512, 512]
-
-        # self.Conv2_2 = make_layers(self.Conv2_2f, in_channels=3, batch_norm=True, dilation=False)
-        self.Conv3_3 = make_layers(self.Conv3_3f, in_channels=3, batch_norm=True, dilation=False)
-        self.Conv4_3 = make_layers(self.Conv4_3f, in_channels=256, batch_norm=True, dilation=False)
-        self.Conv5_3 = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
-        # self.back = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
-
-        self.T1 = nn.Sequential(
-            Conv2d(1025, 256, 1, bn=True),
-            Conv2d(256, 256, 3, bn=True),
-        )
-
-        self.T2 = nn.Sequential(
-            Conv2d(513, 128, 1, bn=True),
-            Conv2d(128, 128, 3, bn=True),
-        )
-
-        self.T3 = nn.Sequential(
-            Conv2d(128, 64, 3, bn=True),
-            Conv2d(64, 64, 3, bn=True),
-            Conv2d(64, 1, 1, bn=True),
-        )
-
-        self.dmnT3 = Conv2d(128, 1, 1, bn=True, se='sigmoid')
-        self.d1024b = Conv2d(1024, 1, 1, bn=True)
-        self.d512b = Conv2d(512, 1, 1, bn=True)
-        self.enhance_pos = multi_att(dim=[512], top=6)
-
-        if not load_weights:
-            mod = models.vgg16_bn(pretrained=True)
-            self._initialize_weights()
-
-            for j in range(len(self.Conv3_3)):
-                self.Conv3_3[j].load_state_dict(mod.features[j].state_dict())
-            for p in range(len(self.Conv4_3)):
-                self.Conv4_3[p].load_state_dict(mod.features[j + p + 1].state_dict())
-            for q in range(len(self.Conv5_3)):
-                # self.Conv5_3[q].load_state_dict(mod.features[i + j + p + q + 3+ 1].state_dict())
-                self.Conv5_3[q].load_state_dict(mod.features[j + p + q + 2].state_dict())
-
-    def forward(self, img):  # the shape of x is 3,3,368,640
-        B, C, H, W = img.shape
-        c3 = self.Conv3_3(img)
-        c4 = self.Conv4_3(c3)
-        c5 = self.Conv5_3(c4)
-        c5, r0 = self.enhance_pos([c5], H, W)
-        s1 = F.interpolate(c5, scale_factor=2, mode='bilinear')
-
-        s1 = torch.cat((s1, c4), 1)
-        del c4
-        r1 = self.d1024b(s1)
-
-        s1 = self.T1(torch.cat((s1, r1), 1))
-
-        s2 = F.interpolate(s1, scale_factor=2, mode='bilinear')
-        s2 = torch.cat((s2, c3), 1)
-        del c3
-        r2 = self.d512b(s2)
-        s2 = self.T2(torch.cat((s2, r2), 1))
-        mask = self.dmnT3(s2)
-        s2 = s2 * mask
-        r4 = self.T3(s2)
-
-        return r4, [r2, r1, r0], mask
-
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
-                if m.bias is not None:
-                    nn.init.constant_(m.bias.data, 0)
-            elif isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-
-
 class ADConv(nn.Module):
+    '''
+    这是一个自适应卷积层，它使用一个卷积层来生成注意力权重，然后通过 Softmax 函数进行归一化，生成注意力分布。
+    '''
+
     def __init__(self, p_num):
         super(ADConv, self).__init__()
         self.conv = nn.Conv2d(1, 1, 1)
@@ -171,11 +103,17 @@ class ADConv(nn.Module):
 
 
 class multi_att(nn.Module):
+    '''
+    multi_att 类实现了一个多尺度注意力机制，它通过查询（query）、键（key）和值（value）的线性变换和注意力加权来增强特征。
+    '''
+    '''
+    这是一个多尺度注意力模块，它使用线性层（Linear）来投影特征，然后通过注意力机制来增强特征。这个模块可以处理不同尺寸的输入，并根据输入尺寸选择不同的前向传播方式。
+    '''
+
     def __init__(self, dim, top=9, c_ratio=8):
         super(multi_att, self).__init__()
         self.p_num = top
         cim = int(dim[0] / c_ratio)
-
         self.proj_q = nn.Linear(dim[0], cim, bias=False)
         self.proj_k = nn.Linear(dim[0], cim, bias=False)
         self.proj_v = nn.Linear(dim[0], cim, bias=False)
@@ -187,7 +125,6 @@ class multi_att(nn.Module):
         self.mlp = Conv2d(dim[0] * 2, dim[0], 1, bn=True)
 
     def forward(self, feat, H, W):
-
         '''
         :param feat: list with different scale feature
         :param size:
@@ -263,6 +200,104 @@ class multi_att(nn.Module):
         return x, r3
 
 
+class zt3(nn.Module):
+    '''
+    在 zt3 类的构造函数中，定义了模型的不同层，包括卷积层、池化层和注意力模块。
+   使用 make_layers 函数根据配置构建卷积层序列。
+   定义了三个不同的卷积层序列 Conv3_3、Conv4_3 和 Conv5_3，它们分别对应不同的特征图尺度。
+   定义了三个转换层 T1、T2 和 T3，以及一个用于生成最终输出的层。
+   定义了一些特定的卷积层用于生成注意力权重和进行特征增强。
+   如果不加载预训练权重，模型会使用 VGG16 预训练模型的权重进行初始化。
+    '''
+
+    def __init__(self, load_weights=False):
+        super(zt3, self).__init__()
+
+        self.Conv3_3f = [64, 64, 'M', 128, 128, 'M', 256, 256, 256]
+        self.Conv4_3f = ['M', 512, 512, 512]
+        self.Conv5_3f = ['M', 512, 512, 512]
+
+        # self.Conv2_2 = make_layers(self.Conv2_2f, in_channels=3, batch_norm=True, dilation=False)
+        self.Conv3_3 = make_layers(self.Conv3_3f, in_channels=3, batch_norm=True, dilation=False)
+        self.Conv4_3 = make_layers(self.Conv4_3f, in_channels=256, batch_norm=True, dilation=False)
+        self.Conv5_3 = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
+        # self.back = make_layers(self.Conv5_3f, in_channels=512, batch_norm=True, dilation=False)
+
+        self.T1 = nn.Sequential(
+            Conv2d(1025, 256, 1, bn=True),
+            Conv2d(256, 256, 3, bn=True),
+        )
+
+        self.T2 = nn.Sequential(
+            Conv2d(513, 128, 1, bn=True),
+            Conv2d(128, 128, 3, bn=True),
+        )
+
+        self.T3 = nn.Sequential(
+            Conv2d(128, 64, 3, bn=True),
+            Conv2d(64, 64, 3, bn=True),
+            Conv2d(64, 1, 1, bn=True),
+        )
+
+        self.dmnT3 = Conv2d(128, 1, 1, bn=True, se='sigmoid')
+        self.d1024b = Conv2d(1024, 1, 1, bn=True)
+        self.d512b = Conv2d(512, 1, 1, bn=True)
+        self.enhance_pos = multi_att(dim=[512], top=6)
+
+        if not load_weights:
+            mod = models.vgg16_bn(pretrained=True)
+            self._initialize_weights()
+            for j in range(len(self.Conv3_3)):
+                self.Conv3_3[j].load_state_dict(mod.features[j].state_dict())
+            for p in range(len(self.Conv4_3)):
+                self.Conv4_3[p].load_state_dict(mod.features[j + p + 1].state_dict())
+            for q in range(len(self.Conv5_3)):
+                # self.Conv5_3[q].load_state_dict(mod.features[i + j + p + q + 3+ 1].state_dict())
+                self.Conv5_3[q].load_state_dict(mod.features[j + p + q + 2].state_dict())
+
+    def forward(self, img):  # the shape of x is 3,3,368,640
+        '''
+        zt3 类的 forward 方法定义了数据通过网络的流程。输入图像首先通过一系列卷积层和池化层，生成不同尺度的特征图。
+        '''
+        B, C, H, W = img.shape
+        c3 = self.Conv3_3(img)
+        c4 = self.Conv4_3(c3)
+        c5 = self.Conv5_3(c4)
+        c5, r0 = self.enhance_pos([c5], H, W)
+        s1 = F.interpolate(c5, scale_factor=2, mode='bilinear')
+
+        s1 = torch.cat((s1, c4), 1)
+        del c4
+        r1 = self.d1024b(s1)
+
+        s1 = self.T1(torch.cat((s1, r1), 1))
+
+        s2 = F.interpolate(s1, scale_factor=2, mode='bilinear')
+        s2 = torch.cat((s2, c3), 1)
+        del c3
+        r2 = self.d512b(s2)
+        s2 = self.T2(torch.cat((s2, r2), 1))
+        mask = self.dmnT3(s2)
+        s2 = s2 * mask
+        r4 = self.T3(s2)
+
+        return r4, [r2, r1, r0], mask
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
+                if m.bias is not None:
+                    nn.init.constant_(m.bias.data, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+
+'''
+包含了一些辅助函数，如 get_back、get_chunck、get_top_value、cos_dot 等，这些函数用于处理注意力模块中的特定操作。
+'''
 def get_back(img, split_r):
     B, C, H, W = img.shape
     hn, wn = split_r
@@ -320,12 +355,19 @@ def get_mask(feat, mask):
     return feat * mask
 
 
+'''
+创建了一个 zt3 模型实例。
+使用一个全为1的张量作为输入图像，模拟模型的前向传播过程。
+打印出模型输出的大小，这通常用于验证模型是否正确构建和执行。
+'''
 
 if __name__ == '__main__':
+    ##1.创建zt3实例化对象
     model = zt3()
     # x = torch.ones(1, 3, 256, 256)
+    ##2.准备输入数据
     x = torch.ones(1, 3, 256, 256)
-    mu, mu_norm = model(x)
+    ##3.将输入数据 x 传递给模型 model，执行前向传播过程。
+    (mu,mu_norm) = model(x)
+    ##4.打印输出结果 mu 和 mu_norm 的大小。
     print(mu.size(), mu_norm.size())
-
-
