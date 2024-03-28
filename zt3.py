@@ -4,13 +4,19 @@ from torchvision import models
 import torch.nn.functional as F
 
 
+#这个类的主要作用是执行卷积操作。这个卷积操作可以通过输入数据上滑动卷积核(滤波器)完成，这个过程可提取出输入数据的局部特征。
 class Conv2d(nn.Module):
+    #多个参数，包括输入通道数（in_channels）、输出通道数（out_channels）、卷积核大小（kernel_size）、步长（stride）、扩张率（dilation）。参数定义了卷积层的行为和输出的特征图的尺寸。
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, bn=False, se='relu', pad=True):
         super(Conv2d, self).__init__()
+
+        #如果 bn 参数为 True，则在卷积层后添加一个 nn.BatchNorm2d 层。
         # print('I am in network conv2d.init')
         padding = int(dilation * (kernel_size - 1) / 2) if pad == True else 0
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, dilation=dilation, padding=padding)
         self.bn = nn.BatchNorm2d(out_channels) if bn else None
+
+        #根据参数 se 的值选择不同的激活函数，如 ReLU 或 Sigmoid。学习模拟更复杂的函数
         if se == "relu":
             self.relu = nn.ReLU(inplace=True)
         elif se == "sigmoid":
@@ -20,6 +26,7 @@ class Conv2d(nn.Module):
         # self.sigmoid = nn.ReLU(inplace=True) if sigmoid else None
 
 
+    #forward方法中，输入数据x先通过卷积层，之后需要经过批量归一化层和激活函数返回处理之后的数据。
     def forward(self, x):
         # print("iam in work conv2d forward")
         x = self.conv(x)
@@ -124,17 +131,24 @@ class multi_att(nn.Module):
 
     def forward(self, feat, H, W):
         '''
+        前向传播函数
+        '''
+        '''
         :param feat: list with different scale feature
         :param size:
         :return:
         '''
         # print ("Train",Train)
-
+        #
+        #根据输入图像的不同大小决定调用哪一个函数
         if H < 768 and W < 768:
+            # get_forward用于处理尺寸较小的特征图
             return self.get_forward(feat)
         else:
+            # get_split_forward用于处理尺寸较大的特征图
             return self.get_split_forward(feat)
 
+   #get_forward用于处理尺寸较小的特征图
     def get_forward(self, feat):
         '''
         这个函数主要用于权重注意力计算
@@ -154,17 +168,22 @@ class multi_att(nn.Module):
         #torch.topk主要选择top-k中最重要的特证
         w, index = torch.topk(w, self.p_num, dim=-1)  # b,hw,n0um
 
-        #get_top_value函数根据选定的索引在proj_v中选择相应的值，之后通过adptive 层进行加权。
+        #通过 get_top_value 函数从 value 中提取相应的特征，之后通过adptive 层进行加权，用于构建最终的输出特征图。
         v = get_top_value(v, index)  # (b,hw1*3,c) (b,hw,num) -> b,hw,num,c
         w = self.adptive(w)
         w = w.view(B, H * W, 1, self.p_num)  # b,HW,1,num
         v = torch.matmul(w, v).squeeze(dim=2)  # b,hw,c
+
+        #通过back线性层将加权后的特征转换回原始维度。
         v = self.back(v)
         v = self.catt * v.transpose(1, 2).reshape(B, C, H, W)
+
+        #使用mlp(多层感知机)和dsn(下采样层)进一步处理融合特征
         x = self.mlp(torch.cat([v, self.catt1 * feat[0]], dim=1))
         r0 = self.dsn(x)
         return x, r0
 
+    #get_split_forward函数处理计算注意力权重的方法与get_forward函数中的方法一致
     def get_split_forward(self, feat):
         '''
         :param feat: list with different scale feature
@@ -189,12 +208,20 @@ class multi_att(nn.Module):
             wn = 1
 
         f = get_chunck(feat[0], [hn, wn])
+
+        #分别计算q、k、v矩阵
         q = self.proj_q(f.flatten(2).transpose(1, 2))  # b,hw1,c/4
         k = self.proj_k(f.flatten(2).transpose(1, 2))
         v = self.proj_v(f.flatten(2).transpose(1, 2))
+
+        #计算余弦相似度
         w = cos_dot(q, k)
         del q, k
+
+        #使用 torch.topk 函数选择 top-k 最重要的特征
         w, index = torch.topk(w, self.p_num, dim=-1)  # b,hw,n0um
+
+        #通过 get_top_value 函数从 value 中提取相应的特征。
         v = get_top_value(v, index)  # (b,hw1*3,c) (b,hw,num) -> b,hw,num,c
         w = self.adptive(w)
         w = w.view(-1, int(H / hn) * int(W / wn), 1, self.p_num)  # b,HW,1,num
@@ -204,7 +231,6 @@ class multi_att(nn.Module):
         v = self.catt * v
         x = self.mlp(torch.cat([v, self.catt1 * feat[0]], dim=1))
         r3 = self.dsn(x)
-
         return x, r3
 
 
@@ -306,41 +332,56 @@ class zt3(nn.Module):
         r4 = self.T3(s2)
         return r4, [r2, r1, r0], mask
 
+    #这个方法的作用是初始化模型中的权重，
     def _initialize_weights(self):
+        # self.modules() 函数遍历模型中的所有模块
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
+                #如果它是一个 nn.Conv2d 类型的层（即二维卷积层），则使用 Xavier（或 Glorot）初始化方法来初始化该层的权重。这个权重使用nn.init.xavier_uniform_ 函数进行初始化，此函数会生成一个均匀分布的随机数，范围是根据层的输入和输出维度自动计算的。
                 nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
                 if m.bias is not None:
                     nn.init.constant_(m.bias.data, 0)
             elif isinstance(m, nn.Linear):
+                #nn.Linear 类型的层（即全连接层），也使用 Xavier 初始化方法来初始化权重，这样可以有助于在全连接层中保持激活函数和梯度分布的稳定。
                 nn.init.xavier_uniform_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
 
+
+
 '''
-包含了一些辅助函数，如 get_back、get_chunck、get_top_value、cos_dot 等，这些函数用于处理注意力模块中的特定操作。
+get_back函数接收两个参数，img是经过注意力机制处理的特征图，可能被分割为多个块便于计算。split_r表示图像在高度和宽度方向的分割比例。
 '''
 def get_back(img, split_r):
+    #根据 split_r 中的值将 img 分割成多个块，在高度和宽度范围进行分割小块，每个块对应于原始图像中的一个子区域。
     B, C, H, W = img.shape
     hn, wn = split_r
+    #分割之后，再将这些块在相反的方向重新拼接起来，进而恢复出完整的特征图
     img = torch.cat(torch.split(img, wn, dim=0), dim=2)
     img = torch.cat(torch.split(img, 1, dim=0), dim=-1)
+    #最终，get_back 函数返回重组后的特征图，其空间分辨率与原始输入图像相匹配。
     return img
 
 
+#get_chunk接收两个参数，input是一个四维张量，表示为：批量大小*通道数*高度*宽度。size是一个元组，包含两个元素，分别表示高度和宽度方向上进行分割的块数。
 def get_chunck(input, size):
     # input = torch.randn(1,3,8,6)
     # print ('ori',input)
     B, C, H, W = input.shape
     img = []
+    #使用torch.split对高度和宽度方向的输入变量进行分割，并且在指定维度将张量分割为多个子张量
     row = torch.split(input, int(H / size[0]), dim=2)
+
+    #函数将这些子张量重新组织成一个新的张量。在高度方向上，它将列子张量（垂直分割）拼接成一个新的张量；然后，在宽度方向上，它将行子张量（水平分割）拼接成最终的张量。
     for r in row:
         img += [torch.cat(torch.split(r, int(W / size[1]), dim=-1), dim=0)]
     img = torch.cat(img, dim=0)
+    #函数返回重组之后的张量，包含所有分割的块，并在一个新的维度上被拼凑，四维张量变为三维张量。
     return img
 
 
+#get_top_value 函数在多尺度注意力机制中的作用是根据计算得到的注意力权重，从一组特征中选择每个位置的 top-k 最重要的特征值。
 def get_top_value(value, index):
     '''
     value: b, pri1, other. Where, pri1 reprensets the dim need be selceted, and other is the other dim
@@ -355,9 +396,10 @@ def get_top_value(value, index):
     value = torch.stack([torch.index_select(value, dim=0, index=n) for n in indext], dim=1)
     value = value.view(b, pri, num, -1)
 
+    #返回重塑后的特证张量，包含根据注意力分数选择的top-k最重要特征
     return value
 
-
+#计算top-k权重。(cos值)
 def cos_dot(x, y):
     '''
     x:b,c,hw / b,hw,c
