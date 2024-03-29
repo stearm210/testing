@@ -320,7 +320,6 @@ class zt3(nn.Module):
         s1 = torch.cat((s1, c4), 1)
         del c4
         r1 = self.d1024b(s1)
-
         s1 = self.T1(torch.cat((s1, r1), 1))
         s2 = F.interpolate(s1, scale_factor=2, mode='bilinear')
         s2 = torch.cat((s2, c3), 1)
