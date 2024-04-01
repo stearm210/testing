@@ -316,7 +316,6 @@ class zt3(nn.Module):
         c5 = self.Conv5_3(c4)
         c5, r0 = self.enhance_pos([c5], H, W)
         s1 = F.interpolate(c5, scale_factor=2, mode='bilinear')
-
         s1 = torch.cat((s1, c4), 1)
         del c4
         r1 = self.d1024b(s1)
