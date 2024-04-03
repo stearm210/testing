@@ -15,7 +15,6 @@ class Conv2d(nn.Module):
         padding = int(dilation * (kernel_size - 1) / 2) if pad == True else 0
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, dilation=dilation, padding=padding)
         self.bn = nn.BatchNorm2d(out_channels) if bn else None
-
         #根据参数 se 的值选择不同的激活函数，如 ReLU 或 Sigmoid。学习模拟更复杂的函数
         if se == "relu":
             self.relu = nn.ReLU(inplace=True)
